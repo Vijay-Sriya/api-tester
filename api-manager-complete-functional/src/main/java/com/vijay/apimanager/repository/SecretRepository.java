@@ -11,4 +11,5 @@ public interface SecretRepository extends JpaRepository<Secret, Long> {
     List<Secret> findByWorkspaceIdAndEnvironment(Long workspaceId, String environment);
     List<Secret> findByWorkspaceId(Long workspaceId);
     List<Secret> findByWorkspaceIdAndType(Long workspaceId, String type);
+    void deleteByWorkspaceId(Long workspaceId);
 }

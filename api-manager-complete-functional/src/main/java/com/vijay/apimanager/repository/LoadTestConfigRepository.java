@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface LoadTestConfigRepository extends JpaRepository<LoadTestConfig, Long> {
     List<LoadTestConfig> findByWorkspaceId(Long workspaceId);
+    void deleteByWorkspaceId(Long workspaceId);
 }

@@ -16,15 +16,36 @@ public class WorkspaceService {
     
     @Autowired
     private WorkspaceRepository workspaceRepository;
-    
+
     @Autowired
     private SwaggerFileRepository swaggerFileRepository;
-    
+
     @Autowired
     private EndpointRepository endpointRepository;
-    
+
     @Autowired
     private TestCaseRepository testCaseRepository;
+
+    @Autowired
+    private TestResultRepository testResultRepository;
+
+    @Autowired
+    private TestSuiteRepository testSuiteRepository;
+
+    @Autowired
+    private EnvironmentVariableRepository environmentVariableRepository;
+
+    @Autowired
+    private EnvironmentRepository environmentRepository;
+
+    @Autowired
+    private SecretRepository secretRepository;
+
+    @Autowired
+    private LoadTestResultRepository loadTestResultRepository;
+
+    @Autowired
+    private LoadTestConfigRepository loadTestConfigRepository;
     
     public List<Workspace> findAll() {
         return workspaceRepository.findAllByOrderByUpdatedAtDesc();
@@ -45,16 +66,41 @@ public class WorkspaceService {
     
     @Transactional
     public void delete(Long id) {
-        // Delete related entities
+        // 1. Delete test results for all test cases in this workspace
+        testCaseRepository.findByWorkspaceIdOrderByCreatedAtDesc(id)
+            .forEach(tc -> testResultRepository.deleteByTestCaseId(tc.getId()));
+
+        // 2. Delete test cases
+        testCaseRepository.deleteByWorkspaceId(id);
+
+        // 3. Delete test suites
+        testSuiteRepository.deleteByWorkspaceId(id);
+
+        // 4. Delete environment variables for all environments in this workspace
+        environmentRepository.findByWorkspaceIdOrderByCreatedAtDesc(id)
+            .forEach(env -> environmentVariableRepository.deleteByEnvironmentId(env.getId()));
+
+        // 5. Delete environments
+        environmentRepository.deleteByWorkspaceId(id);
+
+        // 6. Delete secrets
+        secretRepository.deleteByWorkspaceId(id);
+
+        // 7. Delete load test results for all load test configs in this workspace
+        loadTestConfigRepository.findByWorkspaceId(id)
+            .forEach(cfg -> loadTestResultRepository.deleteByLoadTestConfigId(cfg.getId()));
+
+        // 8. Delete load test configs
+        loadTestConfigRepository.deleteByWorkspaceId(id);
+
+        // 9. Delete endpoints and swagger files
         swaggerFileRepository.findByWorkspaceIdOrderByCreatedAtDesc(id)
             .forEach(swagger -> {
                 endpointRepository.deleteBySwaggerFileId(swagger.getId());
                 swaggerFileRepository.delete(swagger);
             });
-        
-        testCaseRepository.findByWorkspaceIdOrderByCreatedAtDesc(id)
-            .forEach(testCaseRepository::delete);
-        
+
+        // 10. Delete workspace
         workspaceRepository.deleteById(id);
     }
     

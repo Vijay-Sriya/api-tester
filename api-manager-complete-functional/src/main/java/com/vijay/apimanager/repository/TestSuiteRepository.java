@@ -10,4 +10,5 @@ import java.util.List;
 public interface TestSuiteRepository extends JpaRepository<TestSuite, Long> {
     List<TestSuite> findByWorkspaceId(Long workspaceId);
     List<TestSuite> findByWorkspaceIdOrderByCreatedAtDesc(Long workspaceId);
+    void deleteByWorkspaceId(Long workspaceId);
 }

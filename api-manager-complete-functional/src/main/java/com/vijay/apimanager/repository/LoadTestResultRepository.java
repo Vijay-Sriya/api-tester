@@ -8,4 +8,5 @@ import java.util.List;
 @Repository
 public interface LoadTestResultRepository extends JpaRepository<LoadTestResult, Long> {
     List<LoadTestResult> findByLoadTestConfigIdOrderByExecutedAtDesc(Long loadTestConfigId);
+    void deleteByLoadTestConfigId(Long loadTestConfigId);
 }

@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface TestResultRepository extends JpaRepository<TestResult, Long> {
     List<TestResult> findByTestCaseIdOrderByExecutedAtDesc(Long testCaseId);
+    void deleteByTestCaseId(Long testCaseId);
 }

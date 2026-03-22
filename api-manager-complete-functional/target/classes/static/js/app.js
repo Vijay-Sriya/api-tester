@@ -2078,6 +2078,63 @@ showToast(message, type = 'info') {
         return base + (path.startsWith('/') ? path : '/' + path);
     }
 
+    _confirmLoadTest({ vus, durSec, rampSec, thinkTime, url, method }) {
+        return new Promise(resolve => {
+            // Calculate estimated request range
+            // Max: all VUs active for full duration
+            const maxReqs  = Math.round(vus * durSec * 1000 / thinkTime);
+            // Min: accounts for ramp-up (avg VUs during ramp = vus/2)
+            const minReqs  = Math.round(vus * (durSec - rampSec / 2) * 1000 / thinkTime);
+            const reqRange = minReqs === maxReqs
+                ? `~${maxReqs.toLocaleString()}`
+                : `~${minReqs.toLocaleString()} – ${maxReqs.toLocaleString()}`;
+            const rps      = (vus / (thinkTime / 1000)).toFixed(1);
+
+            const warningColor = maxReqs > 10000 ? '#dc2626' : maxReqs > 3000 ? '#d97706' : '#059669';
+            const warningIcon  = maxReqs > 10000 ? '🔴' : maxReqs > 3000 ? '🟡' : '🟢';
+
+            const content = `
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;">
+                        <div style="font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Test Configuration</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.875rem;">
+                            <div style="color:#6b7280;">Target</div>
+                            <div style="font-family:monospace;font-weight:600;word-break:break-all;">${method} ${url}</div>
+                            <div style="color:#6b7280;">Virtual Users</div>
+                            <div style="font-weight:600;">${vus}</div>
+                            <div style="color:#6b7280;">Duration</div>
+                            <div style="font-weight:600;">${durSec}s</div>
+                            <div style="color:#6b7280;">Ramp-up</div>
+                            <div style="font-weight:600;">${rampSec}s</div>
+                            <div style="color:#6b7280;">Think Time</div>
+                            <div style="font-weight:600;">${thinkTime}ms per VU</div>
+                        </div>
+                    </div>
+
+                    <div style="background:#fff;border:2px solid ${warningColor};border-radius:8px;padding:1rem;text-align:center;">
+                        <div style="font-size:0.8rem;color:#6b7280;margin-bottom:0.25rem;">Estimated Requests</div>
+                        <div style="font-size:2rem;font-weight:700;color:${warningColor};">${warningIcon} ${reqRange}</div>
+                        <div style="font-size:0.8rem;color:#6b7280;margin-top:0.25rem;">Peak ${rps} req/s across all VUs</div>
+                    </div>
+
+                    ${maxReqs > 10000 ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:0.75rem;font-size:0.85rem;color:#dc2626;">
+                        ⚠ High request volume. Ensure the target server can handle this load and that you have authorisation to run this test.
+                    </div>` : ''}
+
+                    <div style="font-size:0.85rem;color:#6b7280;text-align:center;">
+                        Are you sure you want to fire this load test?
+                    </div>
+                </div>`;
+
+            const actions = `
+                <button class="btn btn-text" onclick="document.getElementById('modal-container').innerHTML='';window._loadTestResolve(false);">Cancel</button>
+                <button class="btn btn-primary" style="background:#dc2626;border-color:#dc2626;" onclick="document.getElementById('modal-container').innerHTML='';window._loadTestResolve(true);">▶ Run Load Test</button>`;
+
+            window._loadTestResolve = resolve;
+            Components.showModal('Confirm Load Test', content, actions);
+        });
+    }
+
     async startLoadTest() {
         const baseUrl  = document.getElementById('load-baseurl')?.value?.trim() || this.state.baseUrl;
         const method   = document.getElementById('load-method')?.value || 'GET';
@@ -2106,6 +2163,10 @@ showToast(message, type = 'info') {
             errorRate: parseFloat(document.getElementById('thresh-err')?.value) || 1,
             minRps: parseFloat(document.getElementById('thresh-rps')?.value) || 10
         };
+
+        // ── Pre-flight confirmation ───────────────────────────────────────────
+        const confirmed = await this._confirmLoadTest({ vus, durSec, rampSec, thinkTime, url, method });
+        if (!confirmed) return;
 
         try {
             const startBtn = document.getElementById('load-start-btn');
@@ -2480,6 +2541,54 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgr
             Components.showToast('Workspace created successfully', 'success');
         } catch (error) {
             Components.showToast('Failed to create workspace', 'error');
+        }
+    }
+
+    showDeleteWorkspaceModal() {
+        if (!this.state.activeWorkspace) return;
+        const workspace = this.state.workspaces.find(w => w.id === this.state.activeWorkspace);
+        if (!workspace) return;
+        const content = `
+            <div style="margin-bottom:1rem; padding:0.75rem 1rem; background:#fef2f2; border:1px solid #fecaca; border-radius:0.5rem; color:#dc2626; font-size:0.875rem;">
+                ⚠️ <strong>This action is permanent and cannot be undone.</strong><br>
+                All test suites, test cases, environments, secrets, swagger files, endpoints, and load test configs in this workspace will be deleted.
+            </div>
+            <div class="form-group">
+                <label class="form-label">Type <strong>${workspace.name}</strong> to confirm</label>
+                <input type="text" id="delete-workspace-confirm-name" class="form-control" placeholder="${workspace.name}" autocomplete="off">
+            </div>
+        `;
+        const actions = `
+            <button class="btn btn-text" onclick="document.getElementById('modal-container').innerHTML = ''">Cancel</button>
+            <button class="btn btn-danger" onclick="app.confirmDeleteWorkspace()">Delete Workspace</button>
+        `;
+        Components.showModal(`Delete Workspace: ${workspace.name}`, content, actions);
+    }
+
+    async confirmDeleteWorkspace() {
+        const workspace = this.state.workspaces.find(w => w.id === this.state.activeWorkspace);
+        if (!workspace) return;
+        const typed = document.getElementById('delete-workspace-confirm-name')?.value?.trim();
+        if (typed !== workspace.name) {
+            Components.showToast('Workspace name does not match', 'error');
+            return;
+        }
+        try {
+            await apiClient.deleteWorkspace(workspace.id);
+            this.state.workspaces = this.state.workspaces.filter(w => w.id !== workspace.id);
+            document.getElementById('modal-container').innerHTML = '';
+            if (this.state.workspaces.length > 0) {
+                this.state.activeWorkspace = this.state.workspaces[0].id;
+                this.updateWorkspaceSelector();
+                await this.loadWorkspaceData();
+            } else {
+                this.state.activeWorkspace = null;
+                this.updateWorkspaceSelector();
+                this.render();
+            }
+            Components.showToast(`Workspace "${workspace.name}" deleted`, 'success');
+        } catch (error) {
+            Components.showToast('Failed to delete workspace', 'error');
         }
     }
 

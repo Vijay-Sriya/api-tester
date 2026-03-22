@@ -18,4 +18,6 @@ public interface EnvironmentRepository extends JpaRepository<Environment, Long> 
     @Modifying
     @Query("UPDATE Environment e SET e.isActive = false WHERE e.workspaceId = :workspaceId")
     void deactivateAllForWorkspace(@Param("workspaceId") Long workspaceId);
+
+    void deleteByWorkspaceId(Long workspaceId);
 }

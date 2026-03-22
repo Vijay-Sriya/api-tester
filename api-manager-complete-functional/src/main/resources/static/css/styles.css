@@ -107,6 +107,15 @@ body {
     color: #3b82f6;
 }
 
+.icon-btn-danger {
+    color: #9ca3af;
+}
+
+.icon-btn-danger:hover {
+    background: #fef2f2 !important;
+    color: #ef4444 !important;
+}
+
 .icon {
     width: 1.25rem;
     height: 1.25rem;
@@ -594,6 +603,16 @@ details[open] > summary .report-chevron { transform: rotate(90deg); }
 
 .btn-warning:hover {
     background: linear-gradient(135deg, #d97706, #b45309);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
 }
 
 .btn-text {

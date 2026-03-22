@@ -11,5 +11,5 @@ public interface TestCaseRepository extends JpaRepository<TestCase, Long> {
     List<TestCase> findByWorkspaceIdOrderByCreatedAtDesc(Long workspaceId);
     List<TestCase> findBySuiteIdOrderByCreatedAtDesc(Long suiteId);
     void deleteBySuiteId(Long suiteId);
-
+    void deleteByWorkspaceId(Long workspaceId);
 }
